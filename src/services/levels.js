@@ -1,5 +1,5 @@
 /**
- * Niveaux en fonction du cumul des dépôts (lifetime_deposits_ar), en Ariary.
+ * Niveaux en fonction du cumul de dépôts (colonne lifetime_deposits_ar), en Ariary.
  * Ajustez les seuils selon votre produit.
  */
 const THRESHOLDS = [
@@ -28,9 +28,11 @@ export function nextLevelInfo(lifetimeDepositsAr) {
   }
   const current = THRESHOLDS[idx].level;
   const nextThreshold = THRESHOLDS[idx + 1];
+  const nextLevel = nextThreshold ? nextThreshold.level : null;
+
   return {
     current_level: current,
-    next_level: nextThreshold?.level ?? null,
+    next_level: nextLevel,
     amount_to_next_level_ar: nextThreshold ? Math.max(0, nextThreshold.min - n) : 0,
   };
 }

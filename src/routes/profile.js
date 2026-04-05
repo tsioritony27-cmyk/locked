@@ -1,14 +1,21 @@
 import { Router } from 'express';
+import {
+  HTTP_STATUS,
+  PROFILE_DISPLAY_NAME_MAX_LENGTH,
+  PROFILE_PHONE_MAX_LENGTH,
+} from '../config/constants.js';
 import { supabaseAdmin } from '../lib/supabaseAdmin.js';
 import { httpError } from '../lib/httpError.js';
+import { wrapAsync } from '../lib/wrapAsync.js';
 import { nextLevelInfo } from '../services/levels.js';
 import { hasSixConsecutiveActiveMonths } from '../services/loanEligibility.js';
 
 const router = Router();
 
 /** GET /api/v1/me */
-router.get('/', async (req, res, next) => {
-  try {
+router.get(
+  '/',
+  wrapAsync(async (req, res) => {
     const { data: profile, error } = await supabaseAdmin
       .from('profiles')
       .select('*')
@@ -16,7 +23,9 @@ router.get('/', async (req, res, next) => {
       .maybeSingle();
 
     if (error) throw error;
-    if (!profile) throw httpError(404, 'PROFILE_NOT_FOUND', 'Profil introuvable.');
+    if (!profile) {
+      throw httpError(HTTP_STATUS.NOT_FOUND, 'PROFILE_NOT_FOUND', 'Profil introuvable.');
+    }
 
     const levelMeta = nextLevelInfo(profile.lifetime_deposits_ar);
     const loanEligible = await hasSixConsecutiveActiveMonths(req.user.id);
@@ -35,20 +44,28 @@ router.get('/', async (req, res, next) => {
       },
       errors: [],
     });
-  } catch (e) {
-    next(e);
-  }
-});
+  }),
+);
 
 /** PATCH /api/v1/me */
-router.patch('/', async (req, res, next) => {
-  try {
+router.patch(
+  '/',
+  wrapAsync(async (req, res) => {
     const { phone, display_name } = req.body;
     const patch = {};
-    if (phone !== undefined) patch.phone = String(phone).trim().slice(0, 32);
-    if (display_name !== undefined) patch.display_name = String(display_name).trim().slice(0, 120);
+    if (phone !== undefined) {
+      patch.phone = String(phone).trim().slice(0, PROFILE_PHONE_MAX_LENGTH);
+    }
+    if (display_name !== undefined) {
+      patch.display_name = String(display_name).trim().slice(0, PROFILE_DISPLAY_NAME_MAX_LENGTH);
+    }
     if (Object.keys(patch).length === 0) {
-      throw httpError(422, 'VALIDATION', 'Aucun champ à mettre à jour.', 'body');
+      throw httpError(
+        HTTP_STATUS.UNPROCESSABLE_ENTITY,
+        'VALIDATION',
+        'Aucun champ à mettre à jour.',
+        'body',
+      );
     }
 
     const { data, error } = await supabaseAdmin
@@ -76,9 +93,7 @@ router.patch('/', async (req, res, next) => {
       },
       errors: [],
     });
-  } catch (e) {
-    next(e);
-  }
-});
+  }),
+);
 
 export default router;
